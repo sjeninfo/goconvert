@@ -1,4 +1,4 @@
-package main
+package goconvert
 
 import (
 	"errors"
@@ -6,12 +6,12 @@ import (
 	"reflect"
 )
 
-type ConvertSet struct {
-	//Handler must be the fund(inType) (outType, error)
-	Handler interface{}
-	//Override the existing same type convert handler
-	Override bool
-}
+// type ConvertSet struct {
+// 	//Handler must be the fund(inType) (outType, error)
+// 	Handler interface{}
+// 	//Override the existing same type convert handler
+// 	Override bool
+// }
 
 type Converter struct {
 	registry map[reflect.Type]map[reflect.Type]reflect.Value
