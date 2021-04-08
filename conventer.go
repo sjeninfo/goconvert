@@ -58,18 +58,41 @@ func (c *Converter) verifyHandler(handlerType reflect.Type) error {
 }
 
 func (c *Converter) Convert(in, out interface{}) error {
-	inType := reflect.TypeOf(in)
-	outType := reflect.TypeOf(out).Elem()
-	handler, err := c.getHandler(inType, outType)
+	result, err := c.getResult(reflect.ValueOf(in), reflect.TypeOf(out).Elem())
 	if err != nil {
 		return err
 	}
-	result := handler.Call([]reflect.Value{reflect.ValueOf(in)})
-	reflect.ValueOf(out).Elem().Set(result[0])
-	if result[1].Interface() != nil {
-		return result[1].Interface().(error)
-	}
+	reflect.ValueOf(out).Elem().Set(result)
 	return nil
+}
+
+func (c *Converter) getResult(inValue reflect.Value, outType reflect.Type) (reflect.Value, error) {
+	inType := inValue.Type()
+	handler, err := c.getHandler(inType, outType)
+	if err != nil {
+		if inType.Kind() != reflect.Slice || outType.Kind() != reflect.Slice {
+			return reflect.Value{}, err
+		}
+		return c.getSliceResult(inValue, outType)
+	}
+	return executeHandler(handler, inValue)
+}
+
+func (c *Converter) getSliceResult(inValue reflect.Value, outType reflect.Type) (reflect.Value, error) {
+	l := inValue.Len()
+	s := reflect.MakeSlice(outType, l, l)
+	handler, err := c.getHandler(inValue.Type().Elem(), outType.Elem())
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	for i := 0; i < l; i++ {
+		result, err := executeHandler(handler, inValue.Index(i))
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		s.Index(i).Set(result)
+	}
+	return s, nil
 }
 
 func (c *Converter) getHandler(in, out reflect.Type) (reflect.Value, error) {
@@ -82,4 +105,12 @@ func (c *Converter) getHandler(in, out reflect.Type) (reflect.Value, error) {
 		return reflect.Value{}, errors.New("can't find any matches")
 	}
 	return handler, nil
+}
+
+func executeHandler(handler reflect.Value, in reflect.Value) (reflect.Value, error) {
+	result := handler.Call([]reflect.Value{in})
+	if result[1].Interface() != nil {
+		return reflect.Value{}, result[1].Interface().(error)
+	}
+	return result[0], nil
 }
