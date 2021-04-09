@@ -58,12 +58,23 @@ func (c *Converter) verifyHandler(handlerType reflect.Type) error {
 }
 
 func (c *Converter) Convert(in, out interface{}) error {
-	result, err := c.getResult(reflect.ValueOf(in), reflect.TypeOf(out).Elem())
+	result, err := c.getResult(reflect.ValueOf(in), getOutActualType(out))
 	if err != nil {
 		return err
 	}
 	reflect.ValueOf(out).Elem().Set(result)
 	return nil
+}
+
+func getOutActualType(out interface{}) reflect.Type {
+	v := reflect.ValueOf(out).Elem()
+	for {
+		if v.Kind() != reflect.Interface {
+			break
+		}
+		v = v.Elem()
+	}
+	return v.Type()
 }
 
 func (c *Converter) getResult(inValue reflect.Value, outType reflect.Type) (reflect.Value, error) {
